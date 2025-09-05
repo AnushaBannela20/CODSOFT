@@ -1,36 +1,28 @@
-import tensorflow as tf
-from tensorflow.keras.applications import ResNet50
-from tensorflow.keras.preprocessing import image
-from tensorflow.keras.models import Model
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-import numpy as np
+import pandas as pd
+from sklearn.metrics.pairwise import cosine_similarity
 
-# 1. Load Pre-trained CNN (ResNet50 for feature extraction)
-base_model = ResNet50(weights="imagenet")
-cnn_model = Model(inputs=base_model.input, outputs=base_model.layers[-2].output)
+# Sample user-movie ratings dataset
+data = {
+    "User": ["A", "A", "A", "B", "B", "C", "C"],
+    "Movie": ["Inception", "Interstellar", "Memento", "Inception", "Memento", "Interstellar", "Tenet"],
+    "Rating": [5, 4, 5, 4, 3, 5, 4]
+}
 
-# Function to extract image features
-def extract_features(img_path):
-    img = image.load_img(img_path, target_size=(224, 224))
-    x = image.img_to_array(img)
-    x = np.expand_dims(x, axis=0)
-    x = tf.keras.applications.resnet50.preprocess_input(x)
-    features = cnn_model.predict(x, verbose=0)
-    return features
+df = pd.DataFrame(data)
 
-# 2. Dummy vocabulary + captions (In practice, train with dataset like MSCOCO)
-tokenizer = {"<start>":1, "a":2, "dog":3, "on":4, "the":5, "grass":6, "<end>":7}
+# Create User-Item Matrix
+user_item_matrix = df.pivot_table(index="User", columns="Movie", values="Rating").fillna(0)
 
-# 3. Simple Decoder (RNN-like simulation)
-def generate_caption(features):
-    # Normally: LSTM/Transformer trained on dataset
-    # Here: a fixed caption for demo
-    return "a dog on the grass"
+# Collaborative Filtering: Find similarity between users
+user_similarity = cosine_similarity(user_item_matrix)
+user_similarity_df = pd.DataFrame(user_similarity, index=user_item_matrix.index, columns=user_item_matrix.index)
 
-# 4. Run the pipeline
-img_path = "dog.jpg"   # Replace with your image path
-features = extract_features(img_path)
-caption = generate_caption(features)
+# Function to recommend movies for a given user
+def recommend_movies(user):
+    similar_users = user_similarity_df[user].sort_values(ascending=False)
+    best_match = similar_users.index[1]  # most similar other user
+    recommendations = df[df["User"] == best_match]["Movie"].tolist()
+    return recommendations
 
-print("Generated Caption:", caption)
-
+# Example
+print("Recommendations for User A:", recommend_movies("A"))
