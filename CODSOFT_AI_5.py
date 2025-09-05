@@ -1,29 +1,31 @@
-import pandas as pd
-from sklearn.metrics.pairwise import cosine_similarity
+import cv2
 
-# Sample user-movie ratings dataset
-data = {
-    "User": ["A", "A", "A", "B", "B", "C", "C"],
-    "Movie": ["Inception", "Interstellar", "Memento", "Inception", "Memento", "Interstellar", "Tenet"],
-    "Rating": [5, 4, 5, 4, 3, 5, 4]
-}
+# Load pre-trained Haar Cascade for face detection
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
-df = pd.DataFrame(data)
+# Load video (0 = webcam)
+cap = cv2.VideoCapture(0)
 
-# Create User-Item Matrix
-user_item_matrix = df.pivot_table(index="User", columns="Movie", values="Rating").fillna(0)
+print("Press 'q' to quit...")
 
-# Collaborative Filtering: Find similarity between users
-user_similarity = cosine_similarity(user_item_matrix)
-user_similarity_df = pd.DataFrame(user_similarity, index=user_item_matrix.index, columns=user_item_matrix.index)
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
 
-# Function to recommend movies for a given user
-def recommend_movies(user):
-    similar_users = user_similarity_df[user].sort_values(ascending=False)
-    best_match = similar_users.index[1]  # most similar other user
-    recommendations = df[df["User"] == best_match]["Movie"].tolist()
-    return recommendations
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # Convert to grayscale
+    faces = face_cascade.detectMultiScale(gray, 1.3, 5)  # Detect faces
 
-# Example
-print("Recommendations for User A:", recommend_movies("A"))
+    # Draw rectangle around each face
+    for (x, y, w, h) in faces:
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+
+    cv2.imshow("Face Detection", frame)
+
+    if cv2.waitKey(1) & 0xFF == ord("q"):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
+
 
